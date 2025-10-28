@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>12 Week Hypertrophy Tracker</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tone.js CDN for timer sound -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* Custom Material 3 Light Theme (Blue/White) */
+        body {
+            font-family: 'Inter', sans-serif;
+            /* Base Colors */
+            --color-primary: 59 130 246; /* Blue 500 */
+            --color-on-primary: 255 255 255;
+            --color-primary-container: 219 234 254; /* Blue 100 */
+            --color-on-primary-container: 30 64 175; /* Blue 800 */
+
+            --color-secondary: 234 88 12; /* Orange 600 */
+            --color-on-secondary: 255 255 255;
+            --color-secondary-container: 255 237 213; /* Orange 100 */
+            --color-on-secondary-container: 194 65 12; /* Orange 700 */
+
+            --color-surface: 249 250 251; /* Gray 50 */
+            --color-on-surface: 17 24 39; /* Gray 900 */
+            --color-surface-variant: 255 255 255; /* White */
+            --color-on-surface-variant: 55 65 81; /* Gray 700 */
+            --color-outline: 156 163 175; /* Gray 400 */
+
+            --color-background: 243 244 246; /* Gray 100 */
+            --color-on-background: 17 24 39; /* Gray 900 */
+        }
+
+        .m3-text { color: rgb(var(--color-on-background)); }
+        .m3-bg { background-color: rgb(var(--color-background)); }
+        .m3-surface { background-color: rgb(var(--color-surface)); }
+        .m3-on-surface { color: rgb(var(--color-on-surface)); }
+        .m3-surface-variant { background-color: rgb(var(--color-surface-variant)); }
+        .m3-on-surface-variant { color: rgb(var(--color-on-surface-variant)); }
+        
+        .m3-primary-btn {
+            background-color: rgb(var(--color-primary));
+            color: rgb(var(--color-on-primary));
+            transition: all 0.2s ease-in-out;
+        }
+        .m3-primary-btn:hover {
+            background-color: rgb(var(--color-primary) / 0.9);
+            box-shadow: 0 4px 12px rgb(var(--color-primary) / 0.2);
+        }
+
+        .m3-secondary-btn {
+            background-color: rgb(var(--color-secondary));
+            color: rgb(var(--color-on-secondary));
+            transition: all 0.2s ease-in-out;
+        }
+        .m3-secondary-btn:hover {
+            background-color: rgb(var(--color-secondary) / 0.9);
+            box-shadow: 0 4px 12px rgb(var(--color-secondary) / 0.2);
+        }
+        
+        .m3-tonal-btn {
+             background-color: rgb(var(--color-primary-container));
+            color: rgb(var(--color-on-primary-container));
+            transition: all 0.2s ease-in-out;
+        }
+        .m3-tonal-btn:hover {
+            background-color: rgb(var(--color-primary-container) / 0.8);
+        }
+        
+        .m3-tonal-btn.active {
+            background-color: rgb(var(--color-primary));
+            color: rgb(var(--color-on-primary));
+        }
+
+        .m3-card {
+            background-color: rgb(var(--color-surface-variant));
+            color: rgb(var(--color-on-surface-variant));
+            box-shadow: 0 2px 8px rgb(var(--color-primary) / 0.05);
+        }
+        
+        .m3-input {
+            background-color: rgb(var(--color-surface));
+            color: rgb(var(--color-on-surface));
+            border: 1px solid rgb(var(--color-outline) / 0.5);
+        }
+        .m3-input:focus {
+            border-color: rgb(var(--color-primary));
+            box-shadow: 0 0 0 2px rgb(var(--color-primary) / 0.3);
+            outline: none;
+        }
+
+        /* Prevent number input spinners */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+
+        /* Custom scrollbar */
+        main::-webkit-scrollbar {
+            width: 8px;
+        }
+        main::-webkit-scrollbar-track {
+            background: rgb(var(--color-surface));
+        }
+        main::-webkit-scrollbar-thumb {
+            background-color: rgb(var(--color-primary) / 0.7);
+            border-radius: 10px;
+            border: 2px solid rgb(var(--color-surface));
+        }
+
+        /* Timer footer transition */
+        #rest-timer {
+            transition: all 0.3s ease-in-out;
+            overflow: hidden;
+            /* We will set 'bottom' via JS */
+        }
+        #timer-collapsible-content {
+            transition: all 0.3s ease-in-out;
+            max-height: 500px;
+        }
+        #rest-timer.minimized #timer-collapsible-content {
+            max-height: 0;
+            opacity: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+            margin-bottom: -1rem; /* Counteract padding */
+        }
+        #timer-toggle-icon {
+            transition: transform 0.3s ease-in-out;
+            /* Icon is a 'down' chevron by default */
+        }
+        #rest-timer.minimized #timer-toggle-icon {
+            transform: rotate(180deg); /* Rotates to 'up' chevron */
+        }
+    </style>
+</head>
+<body class="m3-bg m3-text antialiased">
+
+    <div class="max-w-lg mx-auto min-h-screen m3-surface shadow-2xl flex flex-col">
+        
+        <!-- Header -->
+        <header class="p-4 m3-surface sticky top-0 z-10 shadow-md">
+            <div class="flex items-center">
+                <button id="back-button" class="hidden text-blue-600 mr-3 p-2 rounded-full hover:bg-blue-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                </button>
+                <h1 id="header-title" class="text-2xl font-bold text-blue-800">Lift History</h1>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main id="main-content" class="flex-grow p-4 overflow-y-auto">
+            
+            <!-- Plan View Container -->
+            <div id="plan-view" class="hidden">
+                <!-- Week Selection View -->
+                <div id="week-select-view">
+                    <h2 class="text-xl font-semibold mb-4 text-blue-700">12 Week Plan</h2>
+                    <div id="week-grid" class="grid grid-cols-3 gap-4">
+                        <!-- Weeks will be injected here by JS -->
+                    </div>
+                </div>
+
+                <!-- Workout Selection View -->
+                <div id="workout-select-view" class="hidden">
+                    <h2 id="workout-select-title" class="text-xl font-semibold mb-4 text-blue-700"></h2>
+                    <div id="workout-list" class="space-y-4">
+                        <!-- Workouts (A, B, C, D) will be injected here -->
+                    </div>
+                </div>
+
+                <!-- Workout View -->
+                <div id="workout-view" class="hidden space-y-4">
+                    <!-- Exercises will be injected here -->
+                </div>
+            </div>
+
+            <!-- History View Container -->
+            <div id="history-view">
+                <h2 class="text-xl font-semibold mb-4 text-blue-700">Exercise History</h2>
+                <div id="history-list" class="space-y-3">
+                    <!-- Exercise history list will be injected here -->
+                </div>
+            </div>
+
+            <!-- History Detail View Container -->
+            <div id="history-detail-view" class="hidden space-y-4">
+                <!-- Exercise history detail will be injected here -->
+            </div>
+
+        </main>
+
+        <!-- Rest Timer (Now collapsible & fixed) -->
+        <footer id="rest-timer" class="m3-surface-variant p-4 fixed bottom-0 left-0 right-0 max-w-lg mx-auto border-t border-gray-200 shadow-2xl rounded-t-2xl hidden z-20">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-lg font-semibold text-blue-800">Rest Timer</span>
+                <div class="flex items-center">
+                    <span id="timer-display" class="text-2xl font-bold text-blue-700 mr-3">0:00</span>
+                    <button id="timer-toggle-btn" class="p-2 rounded-full hover:bg-blue-100">
+                        <svg id="timer-toggle-icon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div id="timer-collapsible-content">
+                <div id="timer-presets" class="flex justify-around gap-2 mb-3">
+                    <button data-time="60" class="timer-btn m3-tonal-btn font-medium py-2 px-4 rounded-full w-full">1:00</button>
+                    <button data-time="90" class="timer-btn m3-tonal-btn font-medium py-2 px-4 rounded-full w-full">1:30</button>
+                    <button data-time="120" class="timer-btn m3-tonal-btn font-medium py-2 px-4 rounded-full w-full">2:00</button>
+                    <button data-time="180" class="timer-btn m3-tonal-btn font-medium py-2 px-4 rounded-full w-full">3:00</button>
+                </div>
+                <div id="timer-controls" class="flex justify-around gap-2">
+                    <button id="timer-pause-resume" class="m3-secondary-btn font-semibold py-2 rounded-full w-full" disabled>Pause</button>
+                    <button id="timer-reset" class="m3-primary-btn font-semibold py-2 rounded-full w-full">Reset</button>
+                </div>
+            </div>
+        </footer>
+
+        <!-- Bottom Navigation -->
+        <nav id="bottom-nav" class="m3-surface p-2 fixed bottom-0 left-0 right-0 max-w-lg mx-auto border-t border-gray-200 shadow-inner z-30">
+            <div class="flex justify-around">
+                <button id="nav-history" class="nav-btn m3-tonal-btn active flex-1 font-medium py-3 px-4 rounded-full">History</button>
+                <button id="nav-plan" class="nav-btn m3-tonal-btn flex-1 font-medium py-3 px-4 rounded-full">Plan</button>
+            </div>
+        </nav>
+    </div>
+
+    <script type="module">
+        // --- STATE ---
+        let currentView = 'history'; // Default to history
+        let currentWeek = null;
+        let currentWorkoutId = null;
+        let progress = {};
+        const LOCAL_STORAGE_KEY = 'hypertrophy_progress_v1';
+
+        // --- TIMER STATE ---
+        let timerInterval = null;
+        let remainingSeconds = 0;
+        let timerPaused = false;
+        let synth = null;
+
+        // --- VIEWS ---
+        const mainContent = document.getElementById('main-content');
+        const planView = document.getElementById('plan-view');
+        const weekSelectView = document.getElementById('week-select-view');
+        const workoutSelectView = document.getElementById('workout-select-view');
+        const workoutView = document.getElementById('workout-view');
+        
+        const historyView = document.getElementById('history-view');
+        const historyDetailView = document.getElementById('history-detail-view');
+        
+        const headerTitle = document.getElementById('header-title');
+        const backButton = document.getElementById('back-button');
+
+        // --- TIMER UI ---
+        const restTimer = document.getElementById('rest-timer');
+        const timerDisplay = document.getElementById('timer-display');
+        const timerPresets = document.getElementById('timer-presets');
+        const timerPauseResume = document.getElementById('timer-pause-resume');
+        const timerReset = document.getElementById('timer-reset');
+        const timerToggleBtn = document.getElementById('timer-toggle-btn');
+
+        // --- NAVIGATION UI ---
+        const bottomNav = document.getElementById('bottom-nav');
+        const navHistoryBtn = document.getElementById('nav-history');
+        const navPlanBtn = document.getElementById('nav-plan');
+
+        // --- DATABASE: 12 Week Hypertrophy Program (3x4 Week Blocks) ---
+        
+        function getBlockForWeek(week) {
+            if (week <= 4) return '1';
+            if (week <= 8) return '2';
+            return '3';
+        }
+
+        const program = {
+            '1': { // Weeks 1-4: Foundation & Volume
+                'A': {
+                    name: 'Upper 1 (Push)',
+                    focus: 'Chest, Shoulders, Triceps',
+                    exercises: [
+                        { name: 'Bench Press', sets: 3, reps: '8-12' },
+                        { name: 'Overhead Press', sets: 3, reps: '8-12' },
+                        { name: 'Incline Dumbbell Press', sets: 3, reps: '10-15' },
+                        { name: 'Dips (or Close Grip Bench)', sets: 3, reps: '8-15' },
+                        { name: 'Cable Flyes', sets: 3, reps: '12-15' },
+                        { name: 'Lateral Raises', sets: 4, reps: '12-20' },
+                        { name: 'Tricep Pushdown', sets: 3, reps: '10-15' },
+                        { name: 'DB Skullcrushers', sets: 3, reps: '10-15', restPause: true },
+                    ]
+                },
+                'B': {
+                    name: 'Lower 1 (Quad Focus)',
+                    focus: 'Quads, Glutes, Calves',
+                    exercises: [
+                        { name: 'Barbell Squats', sets: 3, reps: '8-12' },
+                        { name: 'Leg Press', sets: 3, reps: '10-15' },
+                        { name: 'Bulgarian Split Squats', sets: 3, reps: '8-12 per leg' },
+                        { name: 'Walking Lunges', sets: 3, reps: '10-12 per leg' },
+                        { name: 'Adductor Machine', sets: 3, reps: '15-20' },
+                        { name: 'Leg Extensions', sets: 3, reps: '12-20', restPause: true },
+                        { name: 'Standing Calf Raises', sets: 4, reps: '15-25' },
+                        { name: 'Seated Calf Raises', sets: 2, reps: '15-25' },
+                    ]
+                },
+                'C': {
+                    name: 'Upper 2 (Pull)',
+                    focus: 'Back, Biceps, Rear Delts',
+                    exercises: [
+                        { name: 'Pull-Ups (or Lat Pulldown)', sets: 3, reps: '6-10' },
+                        { name: 'Bent-Over Rows', sets: 3, reps: '8-12' },
+                        { name: 'Dumbbell Rows', sets: 3, reps: '8-12 per arm' },
+                        { name: 'Seated Cable Rows', sets: 3, reps: '10-15' },
+                        { name: 'Rear Delt Flyes', sets: 3, reps: '15-20' },
+                        { name: 'Face Pulls', sets: 3, reps: '15-20' },
+                        { name: 'Bicep Curls', sets: 3, reps: '10-15' },
+                        { name: 'Hammer Curls', sets: 3, reps: '10-15', restPause: true },
+                    ]
+                },
+                'D': {
+                    name: 'Lower 2 (Hinge Focus)',
+                    focus: 'Hamstrings, Glutes, Back',
+                    exercises: [
+                        { name: 'Deadlifts (or RDLs)', sets: 3, reps: '6-10' },
+                        { name: 'Lying Leg Curls', sets: 3, reps: '10-15' },
+                        { name: 'Seated Leg Curls', sets: 3, reps: '10-15' },
+                        { name: 'Glute Bridges / Hip Thrusts', sets: 3, reps: '10-15' },
+                        { name: 'Single Leg RDL', sets: 3, reps: '10-12 per leg' },
+                        { name: 'Back Extensions', sets: 3, reps: '12-20' },
+                        { name: 'Cable Crunches', sets: 4, reps: '15-25' },
+                        { name: 'Seated Calf Raises', sets: 4, reps: '15-25', restPause: true },
+                    ]
+                }
+            },
+            '2': { // Weeks 5-8: Intensity & Variation
+                'A': {
+                    name: 'Upper 1 (Push)',
+                    focus: 'Chest, Shoulders, Triceps',
+                    exercises: [
+                        { name: 'Incline Bench Press', sets: 3, reps: '8-12' },
+                        { name: 'Seated DB Overhead Press', sets: 3, reps: '8-12' },
+                        { name: 'Flat Dumbbell Press', sets: 3, reps: '10-15' },
+                        { name: 'Close Grip Bench Press', sets: 3, reps: '8-15' },
+                        { name: 'Pec Deck Flyes', sets: 3, reps: '12-15' },
+                        { name: 'Cable Lateral Raises', sets: 4, reps: '12-20' },
+                        { name: 'Overhead Rope Ext.', sets: 3, reps: '10-15' },
+                        { name: 'Dips (Assisted or Weighted)', sets: 3, reps: '8-15', restPause: true },
+                    ]
+                },
+                'B': {
+                    name: 'Lower 1 (Quad Focus)',
+                    focus: 'Quads, Glutes, Calves',
+                    exercises: [
+                        { name: 'Front Squats', sets: 3, reps: '8-12' },
+                        { name: 'Hack Squats', sets: 3, reps: '10-15' },
+                        { name: 'Dumbbell Step-Ups', sets: 3, reps: '8-12 per leg' },
+                        { name: 'Leg Extensions', sets: 3, reps: '12-20' },
+                        { name: 'Abductor Machine', sets: 3, reps: '15-20' },
+                        { name: 'Sissy Squats (or Poliquins)', sets: 3, reps: '10-20', restPause: true },
+                        { name: 'Seated Calf Raises', sets: 4, reps: '15-25' },
+                        { name: 'Standing Calf Raises', sets: 2, reps: '15-25' },
+                    ]
+                },
+                'C': {
+                    name: 'Upper 2 (Pull)',
+                    focus: 'Back, Biceps, Rear Delts',
+                    exercises: [
+                        { name: 'Weighted Pull-Ups (or Pulldown)', sets: 3, reps: '6-10' },
+                        { name: 'T-Bar Rows', sets: 3, reps: '8-12' },
+                        { name: 'Single-Arm Lat Pulldowns', sets: 3, reps: '10-15 per arm' },
+                        { name: 'Rack Pulls', sets: 3, reps: '5-8' },
+                        { name: 'Reverse Pec Deck', sets: 3, reps: '15-20' },
+                        { name: 'Shrugs (DB or Barbell)', sets: 3, reps: '10-15' },
+                        { name: 'Preacher Curls', sets: 3, reps: '10-15' },
+                        { name: 'Incline DB Curls', sets: 3, reps: '10-15', restPause: true },
+                    ]
+                },
+                'D': {
+                    name: 'Lower 2 (Hinge Focus)',
+                    focus: 'Hamstrings, Glutes, Back',
+                    exercises: [
+                        { name: 'Romanian Deadlifts (RDLs)', sets: 3, reps: '8-12' },
+                        { name: 'Good Mornings (Barbell or Band)', sets: 3, reps: '10-15' },
+                        { name: 'Lying Leg Curls', sets: 3, reps: '10-15' },
+                        { name: 'Glute-Ham Raises', sets: 3, reps: '8-15' },
+                        { name: 'Hip Thrusts', sets: 3, reps: '10-15' },
+                        { name: 'Leg Press (Hamstring Focus)', sets: 3, reps: '12-20' },
+                        { name: 'Hanging Leg Raises', sets: 4, reps: '15-25' },
+                        { name: 'Hip Thrusts (Single Leg)', sets: 3, reps: '10-15', restPause: true },
+                    ]
+                }
+            },
+            '3': { // Weeks 9-12: Peak & Specialization
+                'A': {
+                    name: 'Upper 1 (Push)',
+                    focus: 'Chest, Shoulders, Triceps',
+                    exercises: [
+                        { name: 'Dumbbell Bench Press (Incline)', sets: 3, reps: '8-12' },
+                        { name: 'Arnold Press', sets: 3, reps: '8-12' },
+                        { name: 'Machine Chest Press', sets: 3, reps: '10-15' },
+                        { name: 'Smith Machine OHP', sets: 3, reps: '8-15' },
+                        { name: 'Incline Cable Flyes', sets: 3, reps: '12-15' },
+                        { name: 'Lateral Raises (Myo-Reps)', sets: 1, reps: '12-20 + 4x5' },
+                        { name: 'Dips (Chest Focus)', sets: 3, reps: '8-15', restPause: true },
+                        { name: 'Single Arm Tricep Ext.', sets: 3, reps: '10-15', restPause: true },
+                    ]
+                },
+                'B': {
+                    name: 'Lower 1 (Quad Focus)',
+                    focus: 'Quads, Glutes, Calves',
+                    exercises: [
+                        { name: 'Pause Squats', sets: 3, reps: '6-10' },
+                        { name: 'Leg Press', sets: 3, reps: '10-15', restPause: true },
+                        { name: 'Walking Lunges (Heavy)', sets: 3, reps: '8-10 per leg' },
+                        { name: 'Bulgarian Split Squats', sets: 3, reps: '10-15 per leg' },
+                        { name: 'Adductor Machine', sets: 3, reps: '15-20' },
+                        { name: 'Leg Extensions', sets: 3, reps: '12-20', restPause: true },
+                        { name: 'Standing Calf Raises', sets: 4, reps: '15-25', restPause: true },
+                        { name: 'Seated Calf Raises', sets: 2, reps: '15-25' },
+                    ]
+                },
+                'C': {
+                    name: 'Upper 2 (Pull)',
+                    focus: 'Back, Biceps, Rear Delts',
+                    exercises: [
+                        { name: 'Lat Pulldowns (Close Grip)', sets: 3, reps: '10-15', restPause: true },
+                        { name: 'Chest-Supported Rows (DB)', sets: 3, reps: '8-12' },
+                        { name: 'Kroc Rows (Single Arm DB)', sets: 2, reps: '15-20 per arm' },
+                        { name: 'Straight-Arm Pulldowns', sets: 3, reps: '12-20' },
+                        { name: 'Face Pulls', sets: 3, reps: '15-20' },
+                        { name: 'Bicep Curls (21s)', sets: 3, reps: '7/7/7' },
+                        { name: 'Hammer Curls', sets: 3, reps: '10-15', restPause: true },
+                        { name: 'Rear Delt Flyes (Machine)', sets: 3, reps: '15-20' },
+                    ]
+                },
+                'D': {
+                    name: 'Lower 2 (Hinge Focus)',
+                    focus: 'Hamstrings, Glutes, Back',
+                    exercises: [
+                        { name: 'Sumo Deadlifts', sets: 3, reps: '5-8' },
+                        { name: 'RDLs (Dumbbell)', sets: 3, reps: '10-15' },
+                        { name: 'Lying Leg Curls', sets: 3, reps: '10-15', restPause: true },
+                        { name: 'Seated Leg Curls', sets: 3, reps: '10-15' },
+                        { name: 'Glute Bridges (Single Leg)', sets: 3, reps: '10-15 per leg' },
+                        { name: 'Hyperextensions (Glute Focus)', sets: 3, reps: '12-20' },
+                        { name: 'Cable Crunches', sets: 4, reps: '15-25', restPause: true },
+                        { name: 'Calf Press (on Leg Press)', sets: 4, reps: '15-25' },
+                    ]
+                }
+            }
+        };
+        
+        // --- NAVIGATION & RENDER FUNCTIONS ---
+
+        function updateMainPadding() {
+            const navHeight = bottomNav.offsetHeight;
+            // Timer height is 0 if hidden, or its full offsetHeight if shown
+            const timerHeight = restTimer.classList.contains('hidden') ? 0 : restTimer.offsetHeight;
+            // Total padding is nav height + timer height + 20px buffer
+            mainContent.style.paddingBottom = `${navHeight + timerHeight + 20}px`;
+        }
+
+        function navigateTo(view, ...args) {
+            // Hide all main containers
+            planView.classList.add('hidden');
+            historyView.classList.add('hidden');
+            historyDetailView.classList.add('hidden');
+            
+            // Hide all sub-views within plan
+            weekSelectView.classList.add('hidden');
+            workoutSelectView.classList.add('hidden');
+            workoutView.classList.add('hidden');
+            
+            // Hide timer by default and reset its position
+            restTimer.classList.add('hidden');
+            restTimer.style.bottom = '0px';
+            
+            currentView = view;
+            backButton.classList.add('hidden');
+
+            if (view === 'history') {
+                historyView.classList.remove('hidden');
+                headerTitle.textContent = 'Lift History';
+                navHistoryBtn.classList.add('active');
+                navPlanBtn.classList.remove('active');
+                renderHistoryList();
+            } else if (view === 'plan') {
+                planView.classList.remove('hidden');
+                weekSelectView.classList.remove('hidden');
+                headerTitle.textContent = 'Workout Plan';
+                navPlanBtn.classList.add('active');
+                navHistoryBtn.classList.remove('active');
+                renderWeekSelect();
+            } else if (view === 'workout-select') {
+                const [week] = args;
+                currentWeek = week;
+                planView.classList.remove('hidden');
+                workoutSelectView.classList.remove('hidden');
+                const block = getBlockForWeek(week);
+                headerTitle.textContent = `Week ${week} (Block ${block})`;
+                backButton.classList.remove('hidden');
+                renderWorkoutSelect(week);
+            } else if (view === 'workout-view') {
+                const [week, workoutId] = args;
+                currentWeek = week;
+                currentWorkoutId = workoutId;
+                planView.classList.remove('hidden');
+                workoutView.classList.remove('hidden');
+                
+                // Show timer and set its position above the nav bar
+                restTimer.classList.remove('hidden');
+                restTimer.style.bottom = `${bottomNav.offsetHeight}px`;
+
+                const block = getBlockForWeek(week);
+                headerTitle.textContent = `Wk ${week} - ${program[block][workoutId].name}`;
+                backButton.classList.remove('hidden');
+                renderWorkout(week, workoutId);
+            } else if (view === 'history-detail') {
+                const [exerciseName] = args;
+                historyDetailView.classList.remove('hidden');
+                headerTitle.textContent = exerciseName;
+                backButton.classList.remove('hidden');
+                renderHistoryDetail(exerciseName);
+            }
+
+            updateMainPadding();
+        }
+
+        // --- Navigation Event Listeners ---
+        backButton.addEventListener('click', () => {
+            if (currentView === 'workout-view') {
+                navigateTo('workout-select', currentWeek);
+            } else if (currentView === 'workout-select') {
+                navigateTo('plan');
+            } else if (currentView === 'history-detail') {
+                navigateTo('history');
+            }
+        });
+
+        navHistoryBtn.addEventListener('click', () => navigateTo('history'));
+        navPlanBtn.addEventListener('click', () => navigateTo('plan'));
+
+        // --- Plan View Renders ---
+        function renderWeekSelect() {
+            const grid = document.getElementById('week-grid');
+            grid.innerHTML = '';
+            for (let i = 1; i <= 12; i++) {
+                const weekButton = document.createElement('button');
+                weekButton.className = 'm3-tonal-btn font-semibold py-6 rounded-2xl text-lg';
+                weekButton.textContent = `Week ${i}`;
+                weekButton.dataset.week = i;
+                weekButton.addEventListener('click', () => {
+                    navigateTo('workout-select', i);
+                });
+                grid.appendChild(weekButton);
+            }
+        }
+
+        function renderWorkoutSelect(week) {
+            const list = document.getElementById('workout-list');
+            list.innerHTML = '';
+            const block = getBlockForWeek(week);
+
+            ['A', 'B', 'C', 'D'].forEach(id => {
+                const workout = program[block][id];
+                const card = document.createElement('button');
+                card.className = 'm3-card w-full p-4 rounded-2xl text-left shadow-lg block transition-transform transform hover:scale-[1.02]';
+                card.dataset.workoutId = id;
+                card.innerHTML = `
+                    <h3 class="text-lg font-bold text-blue-700">Workout ${id}: ${workout.name}</h3>
+                    <p class="text-sm m3-on-surface-variant opacity-80">${workout.focus}</p>
+                `;
+                card.addEventListener('click', () => {
+                    navigateTo('workout-view', week, id);
+                });
+                list.appendChild(card);
+            });
+        }
+
+        function renderWorkout(week, workoutId) {
+            const container = document.getElementById('workout-view');
+            container.innerHTML = '';
+            const block = getBlockForWeek(week);
+            const workout = program[block][workoutId];
+
+            workout.exercises.forEach(exercise => {
+                const card = document.createElement('div');
+                card.className = 'm3-card p-4 rounded-2xl';
+
+                let setsHtml = '';
+                for (let i = 0; i < exercise.sets; i++) {
+                    const setIndex = i;
+                    const lastData = getSetData(week - 1, workoutId, exercise.name, setIndex);
+                    const currentData = getSetData(week, workoutId, exercise.name, setIndex);
+                    
+                    // Rest pause is now on the *last* set, not just set index 2
+                    const isRestPauseSet = exercise.restPause && setIndex === exercise.sets - 1;
+                    
+                    setsHtml += `
+                        <div class="flex items-center gap-2 mb-2 flex-wrap">
+                            <span class="font-bold text-blue-600 w-12">Set ${setIndex + 1}</span>
+                            <!-- Last Time Data -->
+                            <div class="text-xs text-center text-gray-500 w-16">
+                                <span class="block">${lastData.weight || '-'} kg</span>
+                                <span class="block">${lastData.reps || '-'} reps</span>
+                            </div>
+                            
+                            <!-- Current Inputs -->
+                            <input 
+                                type="number" 
+                                class="m3-input rounded-md w-16 text-center"
+                                placeholder="kg" 
+                                value="${currentData.weight || ''}"
+                                data-week="${week}"
+                                data-workout-id="${workoutId}"
+                                data-exercise="${exercise.name}"
+                                data-set-index="${setIndex}"
+                                data-field="weight"
+                            >
+                            <input 
+                                type="number" 
+                                class="m3-input rounded-md w-16 text-center"
+                                placeholder="reps" 
+                                value="${currentData.reps || ''}"
+                                data-week="${week}"
+                                data-workout-id="${workoutId}"
+                                data-exercise="${exercise.name}"
+                                data-set-index="${setIndex}"
+                                data-field="reps"
+                            >
+                            ${isRestPauseSet ? `
+                                <input 
+                                    type="number" 
+                                    class="m3-input rounded-md w-16 text-center"
+                                    placeholder="RP1" 
+                                    value="${currentData.rp1 || ''}"
+                                    data-week="${week}"
+                                    data-workout-id="${workoutId}"
+                                    data-exercise="${exercise.name}"
+                                    data-set-index="${setIndex}"
+                                    data-field="rp1"
+                                >
+                                <input 
+                                    type="number" 
+                                    class="m3-input rounded-md w-16 text-center"
+                                    placeholder="RP2" 
+                                    value="${currentData.rp2 || ''}"
+                                    data-week="${week}"
+                                    data-workout-id="${workoutId}"
+                                    data-exercise="${exercise.name}"
+                                    data-set-index="${setIndex}"
+                                    data-field="rp2"
+                                >
+                            ` : ''}
+                        </div>
+                    `;
+                }
+
+                card.innerHTML = `
+                    <h3 class="text-xl font-semibold mb-1 text-blue-700">${exercise.name}</h3>
+                    <p class="text-sm font-medium mb-3 text-blue-600 opacity-80">${exercise.sets} sets of ${exercise.reps} ${exercise.restPause ? '<span class="font-bold text-orange-600">(Last Set Rest-Pause)</span>' : ''}</p>
+                    <div class="flex items-center gap-2 mb-2 text-xs font-medium text-gray-500 flex-wrap">
+                        <span class="w-12"></span>
+                        <span class="w-16 text-center">Last Time</span>
+                        <span class="w-16 text-center">Weight</span>
+                        <span class="w-16 text-center">Reps</span>
+                        ${workout.exercises.some(e => e.restPause) ? `
+                            <span class="w-16 text-center">RP1</span>
+                            <span class="w-16 text-center">RP2</span>
+                        ` : ''}
+                    </div>
+                    ${setsHtml}
+                `;
+                container.appendChild(card);
+            });
+
+            // Add auto-saving event listeners to all inputs
+            container.querySelectorAll('input').forEach(input => {
+                input.addEventListener('change', handleSetDataChange);
+                input.addEventListener('keyup', handleSetDataChange); // for immediate feedback
+            });
+        }
+
+        // --- History View Renders ---
+        function renderHistoryList() {
+            const listContainer = document.getElementById('history-list');
+            listContainer.innerHTML = '';
+            
+            // Get all unique exercise names from progress data
+            const allExercises = new Set();
+            for (const weekData of Object.values(progress)) {
+                for (const workoutData of Object.values(weekData)) {
+                    for (const exerciseName of Object.keys(workoutData)) {
+                        allExercises.add(exerciseName);
+                    }
+                }
+            }
+            
+            if (allExercises.size === 0) {
+                 listContainer.innerHTML = `<p class="m3-on-surface-variant text-center p-4">No lift history found. Go complete a workout!</p>`;
+                 return;
+            }
+
+            // Sort and render buttons
+            [...allExercises].sort().forEach(exName => {
+                const button = document.createElement('button');
+                button.className = 'm3-card w-full p-4 rounded-2xl text-left shadow-lg block transition-transform transform hover:scale-[1.02]';
+                button.textContent = exName;
+                button.addEventListener('click', () => {
+                    navigateTo('history-detail', exName);
+                });
+                listContainer.appendChild(button);
+            });
+        }
+        
+        function renderHistoryDetail(exerciseName) {
+            const container = document.getElementById('history-detail-view');
+            container.innerHTML = '';
+            let foundData = false;
+
+            for (let week = 1; week <= 12; week++) {
+                let weekHtml = '';
+                const block = getBlockForWeek(week);
+
+                ['A', 'B', 'C', 'D'].forEach(workoutId => {
+                    const sets = progress[week]?.[workoutId]?.[exerciseName];
+                    const workout = program[block]?.[workoutId]; // Get workout template
+                    
+                    if (sets && workout) { // Check if data exists AND workout template exists
+                        foundData = true;
+                        let setsHtml = '';
+                        sets.forEach((setData, index) => {
+                            const reps = setData.reps || '-';
+                            const weight = setData.weight || '-';
+                            let restPauseHtml = '';
+                            if (setData.rp1 || setData.rp2) {
+                                restPauseHtml = ` (+${setData.rp1 || 0}+${setData.rp2 || 0})`;
+                            }
+                            setsHtml += `<span class="m3-tonal-btn rounded-md px-2 py-1 text-sm">${weight}kg x ${reps}${restPauseHtml}</span>`;
+                        });
+                        
+                        weekHtml += `
+                            <div class="mb-2">
+                                <h4 class="font-semibold text-blue-600">Workout ${workoutId} (${workout.name})</h4>
+                                <div class="flex flex-wrap gap-2 mt-1">
+                                    ${setsHtml}
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+                
+                if (weekHtml) {
+                    const weekCard = document.createElement('div');
+                    weekCard.className = 'm3-card p-4 rounded-2xl';
+                    weekCard.innerHTML = `<h3 class="text-lg font-bold text-blue-700 mb-2">Week ${week}</h3> ${weekHtml}`;
+                    container.appendChild(weekCard);
+                }
+            }
+
+            if (!foundData) {
+                container.innerHTML = `<p class="m3-on-surface-variant text-center p-4">No data found for ${exerciseName}.</p>`;
+            }
+        }
+
+        // --- DATA HANDLING ---
+
+        function loadProgress() {
+            const data = localStorage.getItem(LOCAL_STORAGE_KEY);
+            progress = data ? JSON.parse(data) : {};
+        }
+
+        function saveProgress() {
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(progress));
+        }
+
+        function getSetData(week, workoutId, exerciseName, setIndex) {
+            // week - 1 can be 0, which is fine
+            return progress[week - 1]?.[workoutId]?.[exerciseName]?.[setIndex] || {};
+        }
+
+        function handleSetDataChange(e) {
+            const { week, workoutId, exercise, setIndex, field } = e.target.dataset;
+            const value = e.target.value;
+
+            if (!progress[week]) progress[week] = {};
+            if (!progress[week][workoutId]) progress[week][workoutId] = {};
+            if (!progress[week][workoutId][exercise]) progress[week][workoutId][exercise] = [];
+            if (!progress[week][workoutId][exercise][setIndex]) progress[week][workoutId][exercise][setIndex] = {};
+
+            progress[week][workoutId][exercise][setIndex][field] = value;
+            saveProgress();
+        }
+
+        // --- TIMER LOGIC ---
+
+        function initTimer() {
+            try {
+                if (Tone.context.state !== 'running') {
+                    Tone.start();
+                }
+                synth = new Tone.Synth().toDestination();
+            } catch (e) {
+                console.error("Tone.js init failed", e);
+            }
+
+            timerPresets.addEventListener('click', (e) => {
+                if (e.target.classList.contains('timer-btn')) {
+                    const time = parseInt(e.target.dataset.time, 10);
+                    startTimer(time);
+                }
+            });
+
+            timerPauseResume.addEventListener('click', () => {
+                if (timerPaused) {
+                    resumeTimer();
+                } else {
+                    pauseTimer();
+                }
+            });
+
+            timerReset.addEventListener('click', resetTimer);
+            timerToggleBtn.addEventListener('click', toggleTimerCollapse);
+            updateTimerDisplay();
+        }
+        
+        function toggleTimerCollapse() {
+            restTimer.classList.toggle('minimized');
+            // Wait for animation to finish before updating padding
+            setTimeout(updateMainPadding, 300); 
+        }
+
+        function startTimer(duration) {
+            if (timerInterval) clearInterval(timerInterval);
+            remainingSeconds = duration;
+            timerPaused = false;
+            timerPauseResume.textContent = 'Pause';
+            timerPauseResume.disabled = false;
+            updateTimerDisplay();
+            
+            timerInterval = setInterval(() => {
+                if (!timerPaused) {
+                    remainingSeconds--;
+                    updateTimerDisplay();
+                    if (remainingSeconds <= 0) {
+                        clearInterval(timerInterval);
+                        timerInterval = null;
+                        timerPauseResume.disabled = true;
+                        playTimerDoneSound();
+                    }
+                }
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            if (!timerInterval) return;
+            timerPaused = true;
+            timerPauseResume.textContent = 'Resume';
+        }
+
+        function resumeTimer() {
+            if (!timerInterval) return;
+            timerPaused = false;
+            timerPauseResume.textContent = 'Pause';
+        }
+
+        function resetTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            remainingSeconds = 0;
+            timerPaused = false;
+            timerPauseResume.textContent = 'Pause';
+            timerPauseResume.disabled = true;
+            updateTimerDisplay();
+        }
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(remainingSeconds / 60);
+            const seconds = remainingSeconds % 60;
+            timerDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function playTimerDoneSound() {
+            if (synth) {
+                try {
+                    const now = Tone.now();
+                    synth.triggerAttackRelease("C5", "0.2s", now);
+                    synth.triggerAttackRelease("G5", "0.2s", now + 0.3);
+                } catch (e) {
+                    console.error("Timer sound failed", e);
+                }
+            }
+        }
+
+        // --- INITIALIZATION ---
+        function init() {
+            loadProgress();
+            initTimer();
+            navigateTo('history'); // Start on history page
+            // Initial padding calculation
+            window.addEventListener('resize', updateMainPadding);
+            updateMainPadding();
+        }
+
+        init();
+    </script>
+</body>
+</html>
+
