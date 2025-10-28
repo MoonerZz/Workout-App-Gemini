@@ -246,12 +246,14 @@
         let currentWorkoutId = null;
         let progress = {};
         const LOCAL_STORAGE_KEY = 'hypertrophy_progress_v1';
+        const LOCAL_STORAGE_EXERCISES_KEY = 'hypertrophy_exercises_v1';
 
         // --- TIMER STATE ---
         let timerInterval = null;
         let remainingSeconds = 0;
         let timerPaused = false;
         let synth = null;
+        let allExercises = new Set();
 
         // --- VIEWS ---
         const mainContent = document.getElementById('main-content');
@@ -688,11 +690,7 @@
                 container.appendChild(card);
             });
 
-            // Add auto-saving event listeners to all inputs
-            container.querySelectorAll('input').forEach(input => {
-                input.addEventListener('change', handleSetDataChange);
-                input.addEventListener('keyup', handleSetDataChange); // for immediate feedback
-            });
+            // REMOVED: Event listeners are now delegated in init()
         }
 
         // --- History View Renders ---
@@ -700,15 +698,8 @@
             const listContainer = document.getElementById('history-list');
             listContainer.innerHTML = '';
             
-            // Get all unique exercise names from progress data
-            const allExercises = new Set();
-            for (const weekData of Object.values(progress)) {
-                for (const workoutData of Object.values(weekData)) {
-                    for (const exerciseName of Object.keys(workoutData)) {
-                        allExercises.add(exerciseName);
-                    }
-                }
-            }
+            // OPTIMIZED: No longer looping through all progress data
+            // We now use the global `allExercises` set
             
             if (allExercises.size === 0) {
                  listContainer.innerHTML = `<p class="m3-on-surface-variant text-center p-4">No lift history found. Go complete a workout!</p>`;
@@ -782,10 +773,16 @@
         function loadProgress() {
             const data = localStorage.getItem(LOCAL_STORAGE_KEY);
             progress = data ? JSON.parse(data) : {};
+            const exerciseData = localStorage.getItem(LOCAL_STORAGE_EXERCISES_KEY);
+            allExercises = exerciseData ? new Set(JSON.parse(exerciseData)) : new Set();
         }
 
         function saveProgress() {
             localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(progress));
+        }
+
+        function saveExercises() {
+            localStorage.setItem(LOCAL_STORAGE_EXERCISES_KEY, JSON.stringify([...allExercises]));
         }
 
         function getSetData(week, workoutId, exerciseName, setIndex) {
@@ -796,6 +793,12 @@
         function handleSetDataChange(e) {
             const { week, workoutId, exercise, setIndex, field } = e.target.dataset;
             const value = e.target.value;
+
+            // OPTIMIZED: Add new exercises to our fast-lookup Set
+            if (exercise && !allExercises.has(exercise)) {
+                allExercises.add(exercise);
+                saveExercises();
+            }
 
             if (!progress[week]) progress[week] = {};
             if (!progress[week][workoutId]) progress[week][workoutId] = {};
@@ -912,6 +915,20 @@
         function init() {
             loadProgress();
             initTimer();
+
+            // OPTIMIZED: Event delegation for workout inputs
+            // We add listeners to the parent, not to every single input
+            workoutView.addEventListener('change', (e) => {
+                if (e.target.matches('input[data-field]')) {
+                    handleSetDataChange(e);
+                }
+            });
+            workoutView.addEventListener('keyup', (e) => {
+                if (e.target.matches('input[data-field]')) {
+                    handleSetDataChange(e);
+                }
+            });
+
             navigateTo('history'); // Start on history page
             // Initial padding calculation
             window.addEventListener('resize', updateMainPadding);
